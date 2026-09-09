@@ -10,7 +10,8 @@ const TARGET_CARBS = 280;
 const TARGET_FAT = 70;
 
 export function Today() {
-  const { s, d, go } = useBruno();
+  const { s, d, go, profile } = useBruno();
+  const it = s.lang === "it";
 
   const totals = s.meals.reduce(
     (acc, m) => ({
@@ -68,7 +69,9 @@ export function Today() {
         <div className="text-[12px] text-paper/72">
           {s.plan
             ? `${s.plan.exercises.length} ${s.plan.exercises.length === 1 ? "esercizio" : "esercizi"}`
-            : d.sess_meta}
+            : it
+              ? "Nessuna scheda ancora — creane una o aspetta il trainer."
+              : "No plan yet — create one or wait for your trainer."}
         </div>
         <RigTap
           onClick={() => go("session")}
@@ -148,10 +151,14 @@ export function Today() {
               : "Your coach hasn't messaged you yet."}
         </p>
         <RigTap
-          onClick={() => go("chat")}
+          onClick={() => go(profile?.trainerName ? "chat" : "profile")}
           className="font-heading text-[13px] font-semibold leading-none tracking-[.1em] text-accent-700"
         >
-          {d.reply}
+          {profile?.trainerName
+            ? `${it ? "RISPONDI A" : "REPLY TO"} ${profile.trainerName.toUpperCase()} →`
+            : it
+              ? "COLLEGATI A UN TRAINER →"
+              : "LINK A TRAINER →"}
         </RigTap>
       </Blueprint>
     </div>

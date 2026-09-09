@@ -6,6 +6,7 @@ interface WgerTranslation {
   name: string;
   exercise: number;
   description: string;
+  language: number;
 }
 
 interface WgerImage {
@@ -56,10 +57,13 @@ function pickBestTranslation(query: string, results: WgerTranslation[]): WgerTra
 async function searchTranslation(query: string, langId: number): Promise<WgerTranslation | null> {
   const url = `${WGER_BASE}/exercise-translation/?language=${langId}&search=${encodeURIComponent(
     query
-  )}&limit=8&format=json`;
+  )}&limit=20&format=json`;
   const data = await fetchJson<{ results: WgerTranslation[] }>(url);
   if (!data?.results) return null;
-  return pickBestTranslation(query, data.results);
+  // wger's `language` query param doesn't reliably filter server-side — it
+  // can return results in other languages too — so filter strictly here.
+  const sameLanguage = data.results.filter((r) => r.language === langId);
+  return pickBestTranslation(query, sameLanguage);
 }
 
 /**

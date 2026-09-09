@@ -21,7 +21,7 @@ function formatRest(seconds: number) {
 }
 
 export function Plan() {
-  const { s, d, go, refreshBootstrap } = useBruno();
+  const { s, d, go, refreshBootstrap, profile } = useBruno();
   const it = s.lang === "it";
   const locked = s.plan?.managedBy === "TRAINER";
   const canEdit = !locked;
@@ -161,7 +161,9 @@ export function Plan() {
           <div className="font-heading text-[30px] font-semibold leading-none">{d.plan_h}</div>
           <div className="mt-1 text-[12px] text-neutral-700">
             {locked
-              ? d.plan_meta
+              ? it
+                ? `Gestita dal tuo trainer${profile?.trainerName ? ` (${profile.trainerName})` : ""} — non modificabile.`
+                : `Managed by your trainer${profile?.trainerName ? ` (${profile.trainerName})` : ""} — read-only.`
               : it
                 ? "Scheda personale — puoi modificarla quando vuoi."
                 : "Your own plan — edit it whenever you like."}

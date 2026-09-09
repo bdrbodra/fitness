@@ -60,7 +60,11 @@ export function Chat() {
     }
   }
 
-  if (loaded && !counterpart) {
+  if (!loaded) {
+    return <div className="flex h-full items-center justify-center text-[13px] text-neutral-700">…</div>;
+  }
+
+  if (!counterpart) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
         <div className="font-heading text-[20px] font-semibold leading-none">
@@ -79,10 +83,10 @@ export function Chat() {
   return (
     <div className="flex h-full flex-col">
       <div className="px-4 pb-2 pt-3.5">
-        <div className="font-heading text-[26px] font-semibold leading-none">
-          {counterpart ? counterpart.name.toUpperCase() : d.chat_h}
+        <div className="font-heading text-[26px] font-semibold leading-none">{counterpart.name.toUpperCase()}</div>
+        <div className="mt-[3px] text-[11px] text-neutral-700">
+          {s.role === "trainer" ? (it ? "Il tuo cliente" : "Your client") : it ? "Il tuo trainer" : "Your trainer"}
         </div>
-        <div className="mt-[3px] text-[11px] text-neutral-700">{d.chat_sub}</div>
       </div>
       <div className="flex flex-1 flex-col gap-[9px] overflow-auto px-4 py-2.5">
         {messages.map((m) => (
