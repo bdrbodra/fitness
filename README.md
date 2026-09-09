@@ -21,9 +21,8 @@ requires touching code — set them up once from the Vercel dashboard for the
 project this repo is deployed to:
 
 1. **Database** — Project → Storage → Create Database → Postgres (Neon).
-   Connect it to this project. Vercel automatically adds `DATABASE_URL` and
-   `DIRECT_URL` as environment variables — no copy-pasting connection
-   strings needed.
+   Connect it to this project. Vercel automatically adds `DATABASE_URL` as
+   an environment variable — no copy-pasting connection strings needed.
 2. **Photo storage** — Project → Storage → Create Database → Blob. Connect
    it to this project the same way; this injects `BLOB_READ_WRITE_TOKEN`.
    Without this, photo uploads fail in production (Vercel's serverless
@@ -47,7 +46,7 @@ project this repo is deployed to:
 Requires a local Postgres database.
 
 ```bash
-cp .env.example .env   # fill in DATABASE_URL, DIRECT_URL, AUTH_SECRET
+cp .env.example .env   # fill in DATABASE_URL, AUTH_SECRET
 npm install
 npm run db:migrate     # creates tables
 npm run db:seed        # loads the food catalog
