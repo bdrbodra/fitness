@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #f2f2f3;
+  --color-surface: #e9e9ea;
+  --color-ink: #1d1f20;
+
+  --color-accent: #5980a6;
+  --color-accent-100: #eef6ff;
+  --color-accent-200: #d6ebff;
+  --color-accent-300: #b5d9fd;
+  --color-accent-400: #94bce3;
+  --color-accent-500: #749dc4;
+  --color-accent-600: #597ea3;
+  --color-accent-700: #416180;
+  --color-accent-800: #2c455d;
+  --color-accent-900: #1d2d3d;
+
+  --color-neutral-100: #f5f5f8;
+  --color-neutral-200: #e7e7ea;
+  --color-neutral-300: #d4d4d7;
+  --color-neutral-400: #b7b7ba;
+  --color-neutral-500: #98989b;
+  --color-neutral-600: #7a7a7d;
+  --color-neutral-700: #5d5d60;
+  --color-neutral-800: #424244;
+  --color-neutral-900: #2b2b2d;
+
+  --font-heading: var(--font-barlow-condensed), system-ui, sans-serif;
+  --font-body: var(--font-barlow), system-ui, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--color-neutral-200);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font-family: inherit;
+}
+
+input,
+textarea,
+button {
+  font-size: 16px;
+}
+
+.rig-tap {
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  /* Native <button> chrome (rounded bezel, appearance:auto) fights the design
+     system's square, hairline-bordered look — strip it unconditionally. */
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 0;
+}
+
+.rig-tap:active {
+  opacity: 0.75;
+}
+
+/* Blueprint frame: hairline border + four crosshair registration marks. */
+.blueprint {
+  position: relative;
+}
+
+.corner {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  color: color-mix(in srgb, var(--color-ink) 55%, transparent);
+  pointer-events: none;
+}
+
+.corner::before,
+.corner::after {
+  content: "";
+  position: absolute;
+  background: currentColor;
+}
+
+.corner::before {
+  left: 5px;
+  top: 0;
+  width: 1px;
+  height: 100%;
+}
+
+.corner::after {
+  top: 5px;
+  left: 0;
+  width: 100%;
+  height: 1px;
+}
+
+.corner.tl {
+  top: -6px;
+  left: -6px;
+}
+.corner.tr {
+  top: -6px;
+  right: -6px;
+}
+.corner.bl {
+  bottom: -6px;
+  left: -6px;
+}
+.corner.br {
+  bottom: -6px;
+  right: -6px;
+}
+
+.duotone {
+  position: relative;
+  overflow: hidden;
+}
+
+.duotone::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--color-accent);
+  mix-blend-mode: color;
+}
