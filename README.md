@@ -70,7 +70,12 @@ link the two.
 
 Real, persisted per account: auth, workout plan + live session logging,
 meal photos + food search + logged macros, daily habits/mood/streak-freeze,
-streak calculation, and private trainer↔client chat.
+streak calculation, private trainer↔client chat, and per-exercise rest
+times. On the Session screen, "See execution" looks up a matching
+illustration on [wger.de](https://wger.de)'s free, open (CC BY-SA) exercise
+database — no API key needed, but coverage isn't complete for every
+exercise name, especially in Italian (it falls back to English before
+giving up).
 
 Still illustrative (not wired to real history yet — would need more usage
 data or additional tracking to compute honestly): the weekly volume chart,

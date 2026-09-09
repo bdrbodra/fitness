@@ -5,6 +5,7 @@ import { useBruno } from "@/lib/BrunoContext";
 import { Blueprint } from "@/components/ui/Blueprint";
 import { RigTap } from "@/components/ui/RigTap";
 import { ExerciseIcon } from "@/components/ui/ExerciseIcon";
+import { ExerciseVisualButton } from "@/components/ExerciseVisualButton";
 import { PX_PER_STEP, STEP, WMAX, WMIN } from "@/lib/constants";
 
 function formatRest(seconds: number, it: boolean) {
@@ -81,6 +82,12 @@ export function Session() {
           </div>
         </div>
       </div>
+
+      <ExerciseVisualButton
+        exerciseName={currentExercise?.name ?? d.bench}
+        lang={s.lang}
+        className="self-start"
+      />
 
       <Blueprint className="p-3.5">
         <div className="flex items-baseline justify-between gap-2.5">
