@@ -43,6 +43,10 @@ model WorkoutPlan {
   userId    String
   user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   dayLabel  String
+  // Who is allowed to edit this plan. Defaults to USER (self-made, or the
+  // starter plan from signup) — a trainer save flips it to TRAINER, which
+  // locks it read-only for the gym member from then on.
+  managedBy Role           @default(USER)
   updatedAt DateTime       @updatedAt
   exercises PlanExercise[]
 

@@ -24,6 +24,7 @@ interface DragRef {
 export interface PlanData {
   id: string;
   dayLabel: string;
+  managedBy: "USER" | "TRAINER";
   exercises: { id: string; name: string; scheme: string }[];
 }
 

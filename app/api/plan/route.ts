@@ -30,6 +30,7 @@ export async function GET(req: Request) {
       ? {
           id: plan.id,
           dayLabel: plan.dayLabel,
+          managedBy: plan.managedBy,
           exercises: plan.exercises.map((e) => ({ id: e.id, name: e.name, scheme: e.scheme })),
         }
       : null,
@@ -37,30 +38,54 @@ export async function GET(req: Request) {
 }
 
 const schema = z.object({
-  clientId: z.string().min(1),
+  clientId: z.string().min(1).optional(),
   dayLabel: z.string().min(1).max(80),
   exercises: z.array(z.object({ name: z.string().min(1).max(120), scheme: z.string().min(1).max(40) })),
 });
 
 export async function PUT(req: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "TRAINER") return forbidden();
+  if (!session?.user) return unauthorized();
 
   const body = schema.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: body.error.flatten() }, { status: 400 });
 
-  const client = await prisma.user.findFirst({
-    where: { id: body.data.clientId, trainerId: session.user.id },
-  });
-  if (!client) return forbidden();
+  let targetUserId: string;
+  let managedBy: "USER" | "TRAINER";
 
-  let plan = await prisma.workoutPlan.findFirst({ where: { userId: body.data.clientId } });
+  if (session.user.role === "TRAINER") {
+    // A trainer edits a specific client's plan and takes ownership of it —
+    // the client can no longer edit it themselves after this.
+    if (!body.data.clientId) {
+      return NextResponse.json({ error: "clientId required" }, { status: 400 });
+    }
+    const client = await prisma.user.findFirst({
+      where: { id: body.data.clientId, trainerId: session.user.id },
+    });
+    if (!client) return forbidden();
+    targetUserId = body.data.clientId;
+    managedBy = "TRAINER";
+  } else {
+    // A gym member edits their own plan — only allowed while no trainer has
+    // taken it over.
+    targetUserId = session.user.id;
+    managedBy = "USER";
+    const existing = await prisma.workoutPlan.findFirst({ where: { userId: targetUserId } });
+    if (existing?.managedBy === "TRAINER") {
+      return forbidden("Il tuo trainer gestisce questa scheda — chiedigli di modificarla.");
+    }
+  }
+
+  let plan = await prisma.workoutPlan.findFirst({ where: { userId: targetUserId } });
   if (!plan) {
     plan = await prisma.workoutPlan.create({
-      data: { userId: body.data.clientId, dayLabel: body.data.dayLabel },
+      data: { userId: targetUserId, dayLabel: body.data.dayLabel, managedBy },
     });
   } else {
-    await prisma.workoutPlan.update({ where: { id: plan.id }, data: { dayLabel: body.data.dayLabel } });
+    await prisma.workoutPlan.update({
+      where: { id: plan.id },
+      data: { dayLabel: body.data.dayLabel, managedBy },
+    });
   }
 
   await prisma.$transaction([
@@ -79,6 +104,7 @@ export async function PUT(req: Request) {
     plan: {
       id: updated!.id,
       dayLabel: updated!.dayLabel,
+      managedBy: updated!.managedBy,
       exercises: updated!.exercises.map((e) => ({ id: e.id, name: e.name, scheme: e.scheme })),
     },
   });
