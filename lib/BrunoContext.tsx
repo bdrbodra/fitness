@@ -25,7 +25,7 @@ export interface PlanData {
   id: string;
   dayLabel: string;
   managedBy: "USER" | "TRAINER";
-  exercises: { id: string; name: string; scheme: string }[];
+  exercises: { id: string; name: string; scheme: string; restSeconds: number }[];
 }
 
 export interface MealItemData {
@@ -206,7 +206,10 @@ export function BrunoProvider({
   const logout = useCallback(() => signOut({ callbackUrl: "/login" }), []);
 
   const logSet = useCallback(async () => {
-    const exerciseName = plan?.exercises[Math.floor(logged.length / 5) % Math.max(1, plan.exercises.length)]?.name ?? "Esercizio";
+    const exerciseIndex = plan ? Math.min(plan.exercises.length - 1, Math.floor(logged.length / 5)) : -1;
+    const currentExercise = exerciseIndex >= 0 ? plan?.exercises[exerciseIndex] : undefined;
+    const exerciseName = currentExercise?.name ?? "Esercizio";
+    const restSeconds = currentExercise?.restSeconds ?? 90;
     const rpe = logged.length > 2 ? "RPE 8" : "RPE 7";
     const res = await fetch("/api/sets", {
       method: "POST",
@@ -216,7 +219,7 @@ export function BrunoProvider({
     if (res.ok) {
       const { set } = await res.json();
       setLogged((prev) => [...prev, toRow(lang, prev.length + 1, set)]);
-      setRest(90);
+      setRest(restSeconds);
       if (restTimer.current) clearInterval(restTimer.current);
       restTimer.current = setInterval(() => {
         setRest((r) => {

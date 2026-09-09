@@ -4,11 +4,20 @@ import { useState } from "react";
 import { useBruno } from "@/lib/BrunoContext";
 import { Blueprint } from "@/components/ui/Blueprint";
 import { RigTap } from "@/components/ui/RigTap";
+import { ExerciseIcon } from "@/components/ui/ExerciseIcon";
 import { WEEK_TODAY_MARKS } from "@/lib/constants";
 
 interface Row {
   name: string;
   scheme: string;
+  restSeconds: number;
+}
+
+function formatRest(seconds: number) {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s === 0 ? `${m} min` : `${m}:${String(s).padStart(2, "0")}`;
 }
 
 export function Plan() {
@@ -22,11 +31,12 @@ export function Plan() {
   const [rows, setRows] = useState<Row[]>([]);
   const [newName, setNewName] = useState("");
   const [newScheme, setNewScheme] = useState("");
+  const [newRest, setNewRest] = useState(90);
   const [saving, setSaving] = useState(false);
 
   function startEditing() {
     setDayLabel(s.plan?.dayLabel ?? (it ? "LA MIA SCHEDA" : "MY PLAN"));
-    setRows(s.plan?.exercises.map((ex) => ({ name: ex.name, scheme: ex.scheme })) ?? []);
+    setRows(s.plan?.exercises.map((ex) => ({ name: ex.name, scheme: ex.scheme, restSeconds: ex.restSeconds })) ?? []);
     setEditing(true);
   }
 
@@ -35,9 +45,10 @@ export function Plan() {
   }
   function addRow() {
     if (!newName.trim() || !newScheme.trim()) return;
-    setRows((prev) => [...prev, { name: newName.trim(), scheme: newScheme.trim() }]);
+    setRows((prev) => [...prev, { name: newName.trim(), scheme: newScheme.trim(), restSeconds: newRest }]);
     setNewName("");
     setNewScheme("");
+    setNewRest(90);
   }
 
   async function save() {
@@ -67,6 +78,7 @@ export function Plan() {
           <div className="mt-2">
             {rows.map((r, i) => (
               <div key={i} className="flex items-center gap-2.5 border-b border-ink/8 py-2.5">
+                <ExerciseIcon name={r.name} className="flex-none text-accent-700" />
                 <span className="w-3.5 font-heading text-[11px] font-semibold leading-none text-neutral-700">
                   {String(i + 1).padStart(2, "0")}
                 </span>
@@ -74,6 +86,7 @@ export function Plan() {
                 <span className="font-heading text-[14px] font-semibold leading-none tracking-[.04em]">
                   {r.scheme}
                 </span>
+                <span className="text-[11px] text-neutral-700">{formatRest(r.restSeconds)}</span>
                 <button
                   type="button"
                   onClick={() => removeRow(i)}
@@ -100,8 +113,20 @@ export function Plan() {
               value={newScheme}
               onChange={(e) => setNewScheme(e.target.value)}
               placeholder="3 × 12"
-              className="min-h-[44px] w-20 border border-ink/16 bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:border-accent"
+              className="min-h-[44px] w-16 border border-ink/16 bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:border-accent"
             />
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <label className="text-[12px] text-ink/70">{it ? "Recupero" : "Rest"}</label>
+            <input
+              type="number"
+              min={0}
+              step={15}
+              value={newRest}
+              onChange={(e) => setNewRest(Math.max(0, Number(e.target.value) || 0))}
+              className="min-h-[40px] w-20 border border-ink/16 bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:border-accent"
+            />
+            <span className="text-[12px] text-neutral-700">{it ? "secondi" : "seconds"}</span>
           </div>
           <RigTap
             onClick={addRow}
@@ -178,7 +203,8 @@ export function Plan() {
         {s.plan && s.plan.exercises.length > 0 ? (
           <div className="mt-2">
             {s.plan.exercises.map((ex, i) => (
-              <div key={ex.id} className="flex items-baseline gap-2.5 border-b border-ink/8 py-2.5">
+              <div key={ex.id} className="flex items-center gap-2.5 border-b border-ink/8 py-2.5">
+                <ExerciseIcon name={ex.name} className="flex-none text-accent-700" />
                 <span className="w-3.5 font-heading text-[11px] font-semibold leading-none text-neutral-700">
                   {String(i + 1).padStart(2, "0")}
                 </span>
@@ -186,12 +212,15 @@ export function Plan() {
                 <span className="font-heading text-[14px] font-semibold leading-none tracking-[.04em]">
                   {ex.scheme}
                 </span>
+                <span className="w-12 text-right text-[11px] text-neutral-700">{formatRest(ex.restSeconds)}</span>
               </div>
             ))}
           </div>
         ) : (
           <p className="mt-2 text-[13px] text-neutral-700">
-            {it ? "Non hai ancora una scheda — creane una tu, o aspetta che te la assegni il trainer." : "You don't have a plan yet — create one yourself, or wait for your trainer to assign it."}
+            {it
+              ? "Non hai ancora una scheda — creane una tu, o aspetta che te la assegni il trainer."
+              : "You don't have a plan yet — create one yourself, or wait for your trainer to assign it."}
           </p>
         )}
         <RigTap

@@ -54,12 +54,13 @@ model WorkoutPlan {
 }
 
 model PlanExercise {
-  id     String      @id @default(cuid())
-  planId String
-  plan   WorkoutPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  order  Int
-  name   String
-  scheme String
+  id          String      @id @default(cuid())
+  planId      String
+  plan        WorkoutPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  order       Int
+  name        String
+  scheme      String
+  restSeconds Int         @default(90)
 }
 
 model WorkoutSession {

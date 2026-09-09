@@ -88,7 +88,12 @@ export async function GET() {
           id: plan.id,
           dayLabel: plan.dayLabel,
           managedBy: plan.managedBy,
-          exercises: plan.exercises.map((e) => ({ id: e.id, name: e.name, scheme: e.scheme })),
+          exercises: plan.exercises.map((e) => ({
+            id: e.id,
+            name: e.name,
+            scheme: e.scheme,
+            restSeconds: e.restSeconds,
+          })),
         }
       : null,
     session: workoutSession

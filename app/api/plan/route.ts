@@ -31,7 +31,12 @@ export async function GET(req: Request) {
           id: plan.id,
           dayLabel: plan.dayLabel,
           managedBy: plan.managedBy,
-          exercises: plan.exercises.map((e) => ({ id: e.id, name: e.name, scheme: e.scheme })),
+          exercises: plan.exercises.map((e) => ({
+            id: e.id,
+            name: e.name,
+            scheme: e.scheme,
+            restSeconds: e.restSeconds,
+          })),
         }
       : null,
   });
@@ -40,7 +45,13 @@ export async function GET(req: Request) {
 const schema = z.object({
   clientId: z.string().min(1).optional(),
   dayLabel: z.string().min(1).max(80),
-  exercises: z.array(z.object({ name: z.string().min(1).max(120), scheme: z.string().min(1).max(40) })),
+  exercises: z.array(
+    z.object({
+      name: z.string().min(1).max(120),
+      scheme: z.string().min(1).max(40),
+      restSeconds: z.number().int().min(0).max(900).optional(),
+    })
+  ),
 });
 
 export async function PUT(req: Request) {
@@ -91,7 +102,13 @@ export async function PUT(req: Request) {
   await prisma.$transaction([
     prisma.planExercise.deleteMany({ where: { planId: plan.id } }),
     prisma.planExercise.createMany({
-      data: body.data.exercises.map((e, i) => ({ planId: plan!.id, order: i, name: e.name, scheme: e.scheme })),
+      data: body.data.exercises.map((e, i) => ({
+        planId: plan!.id,
+        order: i,
+        name: e.name,
+        scheme: e.scheme,
+        restSeconds: e.restSeconds ?? 90,
+      })),
     }),
   ]);
 
@@ -105,7 +122,12 @@ export async function PUT(req: Request) {
       id: updated!.id,
       dayLabel: updated!.dayLabel,
       managedBy: updated!.managedBy,
-      exercises: updated!.exercises.map((e) => ({ id: e.id, name: e.name, scheme: e.scheme })),
+      exercises: updated!.exercises.map((e) => ({
+        id: e.id,
+        name: e.name,
+        scheme: e.scheme,
+        restSeconds: e.restSeconds,
+      })),
     },
   });
 }

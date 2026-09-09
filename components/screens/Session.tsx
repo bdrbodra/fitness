@@ -4,7 +4,13 @@ import { useMemo } from "react";
 import { useBruno } from "@/lib/BrunoContext";
 import { Blueprint } from "@/components/ui/Blueprint";
 import { RigTap } from "@/components/ui/RigTap";
+import { ExerciseIcon } from "@/components/ui/ExerciseIcon";
 import { PX_PER_STEP, STEP, WMAX, WMIN } from "@/lib/constants";
+
+function formatRest(seconds: number, it: boolean) {
+  const label = seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  return `${it ? "recupero" : "rest"} ${label}`;
+}
 
 export function Session() {
   const {
@@ -54,19 +60,25 @@ export function Session() {
         <div className="h-full bg-accent" style={{ width: `${barWidth}%` }} />
       </div>
 
-      <div>
-        <div className="font-heading text-[10px] font-semibold leading-none tracking-[.14em] text-accent-700">
-          {(() => {
-            const nums = [exerciseIndex + 1, totalExercises];
-            let i = 0;
-            return d.ex_of.replace(/\d+/g, () => String(nums[i++]));
-          })()}
+      <div className="flex items-start gap-3">
+        <div className="mt-1 flex h-11 w-11 flex-none items-center justify-center border border-ink/16 text-accent-700">
+          <ExerciseIcon name={currentExercise?.name ?? "bilanciere"} size={24} />
         </div>
-        <div className="mt-[5px] font-heading text-[30px] font-semibold leading-[1.05]">
-          {currentExercise ? currentExercise.name.toUpperCase() : d.bench}
-        </div>
-        <div className="mt-0.5 text-[12px] text-neutral-700">
-          {currentExercise ? currentExercise.scheme : d.bench_meta}
+        <div>
+          <div className="font-heading text-[10px] font-semibold leading-none tracking-[.14em] text-accent-700">
+            {(() => {
+              const nums = [exerciseIndex + 1, totalExercises];
+              let i = 0;
+              return d.ex_of.replace(/\d+/g, () => String(nums[i++]));
+            })()}
+          </div>
+          <div className="mt-[5px] font-heading text-[30px] font-semibold leading-[1.05]">
+            {currentExercise ? currentExercise.name.toUpperCase() : d.bench}
+          </div>
+          <div className="mt-0.5 text-[12px] text-neutral-700">
+            {currentExercise ? currentExercise.scheme : d.bench_meta}
+            {currentExercise ? ` · ${formatRest(currentExercise.restSeconds, s.lang === "it")}` : ""}
+          </div>
         </div>
       </div>
 
