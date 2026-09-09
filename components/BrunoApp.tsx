@@ -1,7 +1,6 @@
 "use client";
 
 import { BrunoProvider, useBruno } from "@/lib/BrunoContext";
-import type { Lang, Role } from "@/lib/types";
 import { Header } from "@/components/Header";
 import { TabBar } from "@/components/TabBar";
 import { Today } from "@/components/screens/Today";
@@ -52,27 +51,37 @@ function Screen() {
   }
 }
 
-export function BrunoApp({
-  brandName = "Bruno",
-  startLang = "it",
-  startRole = "user",
-}: {
-  brandName?: string;
-  startLang?: Lang;
-  startRole?: Role;
-}) {
-  return (
-    <BrunoProvider brandName={brandName} startLang={startLang} startRole={startRole}>
-      <div
-        className="mx-auto flex h-dvh max-w-[560px] flex-col border-x border-ink/12 bg-paper text-ink"
-        style={{ fontFamily: "var(--font-body)" }}
-      >
-        <Header />
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
-          <Screen />
+function Shell() {
+  const { loading } = useBruno();
+
+  if (loading) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-paper">
+        <div className="flex h-[26px] w-[26px] animate-pulse items-center justify-center bg-accent font-heading text-[15px] font-semibold leading-none text-paper">
+          B
         </div>
-        <TabBar />
       </div>
+    );
+  }
+
+  return (
+    <div
+      className="mx-auto flex h-dvh max-w-[560px] flex-col border-x border-ink/12 bg-paper text-ink"
+      style={{ fontFamily: "var(--font-body)" }}
+    >
+      <Header />
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+        <Screen />
+      </div>
+      <TabBar />
+    </div>
+  );
+}
+
+export function BrunoApp({ brandName = "Bruno" }: { brandName?: string }) {
+  return (
+    <BrunoProvider brandName={brandName}>
+      <Shell />
     </BrunoProvider>
   );
 }

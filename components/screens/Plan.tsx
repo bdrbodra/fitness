@@ -6,7 +6,7 @@ import { RigTap } from "@/components/ui/RigTap";
 import { WEEK_TODAY_MARKS } from "@/lib/constants";
 
 export function Plan() {
-  const { d, go } = useBruno();
+  const { s, d, go } = useBruno();
 
   return (
     <div className="flex flex-col gap-3.5 px-4 pb-[22px] pt-4">
@@ -36,24 +36,31 @@ export function Plan() {
 
       <Blueprint className="p-3.5">
         <div className="font-heading text-[10px] font-semibold leading-none tracking-[.14em] text-accent-700">
-          {d.day_push}
+          {s.plan ? s.plan.dayLabel : d.day_push}
         </div>
-        <div className="mt-2">
-          {d.plan_ex.map(([name, scheme], i) => (
-            <div key={name} className="flex items-baseline gap-2.5 border-b border-ink/8 py-2.5">
-              <span className="w-3.5 font-heading text-[11px] font-semibold leading-none text-neutral-700">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span className="flex-1 text-[13px]">{name}</span>
-              <span className="font-heading text-[14px] font-semibold leading-none tracking-[.04em]">
-                {scheme}
-              </span>
-            </div>
-          ))}
-        </div>
+        {s.plan && s.plan.exercises.length > 0 ? (
+          <div className="mt-2">
+            {s.plan.exercises.map((ex, i) => (
+              <div key={ex.id} className="flex items-baseline gap-2.5 border-b border-ink/8 py-2.5">
+                <span className="w-3.5 font-heading text-[11px] font-semibold leading-none text-neutral-700">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="flex-1 text-[13px]">{ex.name}</span>
+                <span className="font-heading text-[14px] font-semibold leading-none tracking-[.04em]">
+                  {ex.scheme}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-[13px] text-neutral-700">
+            Il tuo trainer non ha ancora assegnato una scheda.
+          </p>
+        )}
         <RigTap
           onClick={() => go("session")}
-          className="mt-3.5 flex min-h-[52px] w-full items-center justify-center bg-accent font-heading text-[16px] font-semibold leading-none tracking-[.12em] text-paper"
+          disabled={!s.plan || s.plan.exercises.length === 0}
+          className="mt-3.5 flex min-h-[52px] w-full items-center justify-center bg-accent font-heading text-[16px] font-semibold leading-none tracking-[.12em] text-paper disabled:opacity-40"
         >
           {d.start_this}
         </RigTap>

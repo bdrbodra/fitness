@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  TRAINER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(USER)
+  lang         String   @default("it")
+  goal         String?
+  createdAt    DateTime @default(now())
+
+  // A gym member links to one trainer. A trainer's own trainerId is null.
+  trainerId String?
+  trainer   User?   @relation("TrainerClients", fields: [trainerId], references: [id])
+  clients   User[]  @relation("TrainerClients")
+
+  // Only set (and unique) for TRAINER accounts — the code clients enter to link.
+  trainerCode String? @unique
+
+  plans        WorkoutPlan[]
+  workouts     WorkoutSession[]
+  meals        Meal[]
+  dailyLogs    DailyLog[]
+
+  sentMessages     ChatMessage[] @relation("Sender")
+  receivedMessages ChatMessage[] @relation("Recipient")
+}
+
+model WorkoutPlan {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayLabel  String
+  updatedAt DateTime       @updatedAt
+  exercises PlanExercise[]
+
+  @@index([userId])
+}
+
+model PlanExercise {
+  id     String      @id @default(cuid())
+  planId String
+  plan   WorkoutPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  order  Int
+  name   String
+  scheme String
+}
+
+model WorkoutSession {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt DateTime    @default(now())
+  sets      LoggedSet[]
+
+  @@index([userId])
+}
+
+model LoggedSet {
+  id        String         @id @default(cuid())
+  sessionId String
+  session   WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise  String
+  weightKg  Float
+  reps      Int
+  rpe       String
+  createdAt DateTime       @default(now())
+}
+
+model Food {
+  id         String     @id @default(cuid())
+  nameIt     String
+  nameEn     String
+  kcal100    Float
+  protein100 Float
+  carbs100   Float
+  fat100     Float
+  mealItems  MealItem[]
+}
+
+model Meal {
+  id       String     @id @default(cuid())
+  userId   String
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slot     String
+  photoUrl String?
+  loggedAt DateTime   @default(now())
+  items    MealItem[]
+
+  @@index([userId])
+}
+
+model MealItem {
+  id     String @id @default(cuid())
+  mealId String
+  meal   Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  foodId String
+  food   Food   @relation(fields: [foodId], references: [id])
+  grams  Float
+}
+
+model DailyLog {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @db.Date
+  habits Json
+  mood   Int?
+  freeze Boolean  @default(false)
+
+  @@unique([userId, date])
+}
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  senderId    String
+  sender      User     @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   User     @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  text        String
+  createdAt   DateTime @default(now())
+
+  @@index([senderId, recipientId])
+}

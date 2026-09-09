@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
+import { SessionProviderWrapper } from "@/components/SessionProviderWrapper";
 
 const barlow = Barlow({
   subsets: ["latin"],
@@ -44,7 +45,7 @@ export default function RootLayout({
   return (
     <html lang="it" className={`${barlow.variable} ${barlowCondensed.variable}`}>
       <body className="bg-neutral-200">
-        {children}
+        <SessionProviderWrapper>{children}</SessionProviderWrapper>
         <RegisterServiceWorker />
       </body>
     </html>

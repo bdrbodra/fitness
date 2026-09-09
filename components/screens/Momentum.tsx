@@ -6,6 +6,7 @@ import { RigTap } from "@/components/ui/RigTap";
 
 export function Momentum() {
   const { s, d, go, toggleHabit, setMood, useFreeze } = useBruno();
+  const it = s.lang === "it";
 
   return (
     <div className="flex flex-col gap-4 px-4 pb-[22px] pt-4">
@@ -16,19 +17,28 @@ export function Momentum() {
           {d.streak_card}
         </div>
         <div className="mt-1.5 flex items-end gap-2.5">
-          <span className="font-heading text-[62px] font-semibold leading-none">14</span>
-          <span className="pb-2 text-[12px] text-paper/72">{d.streak_sub}</span>
+          <span className="font-heading text-[62px] font-semibold leading-none">{s.streak}</span>
+          <span className="pb-2 text-[12px] text-paper/72">
+            {it ? "Tieni tre abitudini su quattro ogni giorno." : "Keep three of four habits every day."}
+          </span>
         </div>
         <div className="mt-3 flex gap-1">
           {Array.from({ length: 7 }).map((_, i) => (
-            <div key={i} className="h-1.5 flex-1 bg-accent" />
+            <div key={i} className={`h-1.5 flex-1 ${i < Math.min(7, s.streak) ? "bg-accent" : "bg-paper/20"}`} />
           ))}
         </div>
         <RigTap
           onClick={useFreeze}
-          className="mt-3.5 flex min-h-[48px] w-full items-center justify-center px-2.5 text-center font-heading text-[13px] font-semibold leading-[1.2] tracking-[.1em] text-paper border border-accent-400"
+          disabled={s.freeze}
+          className="mt-3.5 flex min-h-[48px] w-full items-center justify-center px-2.5 text-center font-heading text-[13px] font-semibold leading-[1.2] tracking-[.1em] text-paper border border-accent-400 disabled:opacity-70"
         >
-          {s.freeze ? d.freeze_on : d.freeze}
+          {s.freeze
+            ? it
+              ? "SALVAGENTE ATTIVO OGGI"
+              : "SAVER ACTIVE TODAY"
+            : it
+              ? "USA UN SALVAGENTE OGGI"
+              : "USE A SAVER TODAY"}
         </RigTap>
       </Blueprint>
 
@@ -93,38 +103,16 @@ export function Momentum() {
         <div className="mt-2.5 text-[12.5px] text-accent-700">{d.mood_hints[s.mood]}</div>
       </Blueprint>
 
-      <Blueprint className="p-3.5">
-        <div className="font-heading text-[11px] font-semibold leading-none tracking-[.14em] text-accent-700">
-          {d.challenge}
-        </div>
-        <div className="mt-1.5 font-heading text-[19px] font-semibold leading-[1.1]">
-          {d.challenge_name}
-        </div>
-        <div className="mt-2.5">
-          {d.board.map(([pos, name, score], i) => (
-            <div
-              key={pos + name}
-              className={`flex items-center gap-3 border-b border-ink/8 px-2.5 py-2.5 ${
-                i === 2 ? "bg-accent/12" : ""
-              }`}
-            >
-              <span className="w-4 font-heading text-[13px] font-semibold leading-none text-neutral-700">
-                {pos}
-              </span>
-              <span className="flex-1 text-[13.5px]">{name}</span>
-              <span className="font-heading text-[16px] font-semibold leading-none">{score}</span>
-            </div>
-          ))}
-        </div>
-      </Blueprint>
-
       <div>
         <div className="mb-[9px] font-heading text-[11px] font-semibold leading-none tracking-[.14em] text-neutral-700">
           {d.badges}
         </div>
         <div className="grid grid-cols-3 gap-2">
           {d.badge_list.map((label, i) => {
-            const earned = i < 4;
+            // Only badges we can honestly compute from real account data are
+            // ever shown as earned — the rest need more history to unlock
+            // (session totals, lifetime PRs) and stay locked for now.
+            const earned = i === 2 && s.streak >= 7;
             return (
               <div
                 key={label}

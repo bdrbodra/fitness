@@ -30,7 +30,12 @@ export function Session() {
     [tickCount]
   );
   const offset = ((s.weight - WMIN) / STEP) * PX_PER_STEP;
-  const barWidth = Math.min(100, (s.logged.length / 24) * 100);
+  const totalExercises = s.plan?.exercises.length ?? 1;
+  const totalSets = totalExercises * 5;
+  const barWidth = Math.min(100, (s.logged.length / totalSets) * 100);
+  const exerciseIndex = Math.min(totalExercises - 1, Math.floor(s.logged.length / 5));
+  const currentExercise = s.plan?.exercises[exerciseIndex];
+  const setInExercise = (s.logged.length % 5) + 1;
 
   return (
     <div className="flex flex-col gap-3 px-4 pb-[26px] pt-3.5">
@@ -42,7 +47,7 @@ export function Session() {
           {d.end}
         </RigTap>
         <div className="font-heading text-[12px] font-semibold leading-none tracking-[.1em]">
-          {s.logged.length} / 24 {d.set_word}
+          {s.logged.length} / {totalSets} {d.set_word}
         </div>
       </div>
       <div className="h-[3px] bg-ink/12">
@@ -51,18 +56,24 @@ export function Session() {
 
       <div>
         <div className="font-heading text-[10px] font-semibold leading-none tracking-[.14em] text-accent-700">
-          {d.ex_of}
+          {(() => {
+            const nums = [exerciseIndex + 1, totalExercises];
+            let i = 0;
+            return d.ex_of.replace(/\d+/g, () => String(nums[i++]));
+          })()}
         </div>
         <div className="mt-[5px] font-heading text-[30px] font-semibold leading-[1.05]">
-          {d.bench}
+          {currentExercise ? currentExercise.name.toUpperCase() : d.bench}
         </div>
-        <div className="mt-0.5 text-[12px] text-neutral-700">{d.bench_meta}</div>
+        <div className="mt-0.5 text-[12px] text-neutral-700">
+          {currentExercise ? currentExercise.scheme : d.bench_meta}
+        </div>
       </div>
 
       <Blueprint className="p-3.5">
         <div className="flex items-baseline justify-between gap-2.5">
           <div className="font-heading text-[10px] font-semibold leading-none tracking-[.14em] text-accent-700">
-            {d.set_word} {s.logged.length + 1} / 5
+            {d.set_word} {setInExercise} / 5
           </div>
           <div className="text-[11px] text-neutral-700">{d.drag_hint}</div>
         </div>

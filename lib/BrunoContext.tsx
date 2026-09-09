@@ -10,16 +10,10 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
+import { useSession, signOut } from "next-auth/react";
 import { DICT, type Dict } from "./i18n";
-import { STORAGE_KEY, STEP, WMAX, WMIN } from "./constants";
-import type {
-  ChatMessage,
-  Lang,
-  LoggedSet,
-  PersistedState,
-  Role,
-  View,
-} from "./types";
+import { STEP, WMAX, WMIN } from "./constants";
+import type { Lang, LoggedSet, Role, View } from "./types";
 
 interface DragRef {
   x: number;
@@ -27,140 +21,168 @@ interface DragRef {
   width?: number;
 }
 
-interface BrunoState {
+export interface PlanData {
+  id: string;
+  dayLabel: string;
+  exercises: { id: string; name: string; scheme: string }[];
+}
+
+export interface MealItemData {
+  id: string;
+  name: string;
+  grams: number;
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export interface MealData {
+  id: string;
+  slot: string;
+  photoUrl: string | null;
+  macros: { kcal: number; protein: number; carbs: number; fat: number };
+  items: MealItemData[];
+}
+
+export interface ClientSummary {
+  id: string;
+  name: string;
+  streak: number;
+}
+
+export interface ProfileData {
+  id: string;
+  name: string;
+  email: string;
+  role: "USER" | "TRAINER";
   lang: Lang;
-  role: Role;
+  goal: string | null;
+  trainerCode: string | null;
+  trainerId: string | null;
+  trainerName: string | null;
+}
+
+interface CoreState {
   view: View;
+  lang: Lang;
   weight: number;
   reps: number;
-  logged: LoggedSet[];
   rest: number;
-  portion: number;
-  draft: string;
-  extra: number[];
-  removed: number[];
-  msgs: ChatMessage[] | null;
-  goal: number;
-  invite: string;
-  buildDay: number;
+  logged: LoggedSet[];
   habits: boolean[];
   mood: number;
   freeze: boolean;
+  streak: number;
+  plan: PlanData | null;
+  meals: MealData[];
+  clients: ClientSummary[] | null;
+  selectedClientId: string | null;
+  lastCoachMessage: { text: string; createdAt: string } | null;
 }
 
-const defaultState = (brandLang: Lang, brandRole: Role): BrunoState => ({
-  lang: brandLang,
-  role: brandRole,
-  view: brandRole === "trainer" ? "clients" : "today",
-  weight: 72.5,
-  reps: 5,
-  logged: [],
-  rest: 0,
-  portion: 1,
-  draft: "",
-  extra: [],
-  removed: [],
-  msgs: null,
-  goal: 0,
-  invite: "DANA-4417",
-  buildDay: 0,
-  habits: [true, false, false, false],
-  mood: 1,
-  freeze: false,
-});
-
 interface BrunoContextValue {
-  s: BrunoState;
+  loading: boolean;
+  profile: ProfileData | null;
+  s: CoreState & { role: Role };
   d: Dict;
   brand: string;
   brandInitial: string;
   fmt: (weight: number) => string;
   go: (view: View) => void;
-  setUser: () => void;
-  setTrainer: () => void;
   toggleLang: () => void;
-  logSet: () => void;
+  logout: () => void;
+  logSet: () => Promise<void>;
   skipRest: () => void;
   repsUp: () => void;
   repsDown: () => void;
   dialDown: (e: React.PointerEvent<HTMLDivElement>) => void;
   dialMove: (e: React.PointerEvent<HTMLDivElement>) => void;
-  portionDown: (e: React.PointerEvent<HTMLDivElement>) => void;
-  portionMove: (e: React.PointerEvent<HTMLDivElement>) => void;
   dragUp: () => void;
-  setDraft: (v: string) => void;
-  send: () => void;
   toggleHabit: (i: number) => void;
   setMood: (i: number) => void;
   useFreeze: () => void;
-  setGoal: (i: number) => void;
-  setInvite: (v: string) => void;
-  setBuildDay: (i: number) => void;
-  addExercise: () => void;
-  removeBuildRow: (i: number) => void;
+  openClient: (id: string) => void;
+  refreshMeals: () => Promise<void>;
+  refreshBootstrap: () => Promise<void>;
+  saveProfile: (input: { goal?: string; trainerCode?: string }) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const BrunoContext = createContext<BrunoContextValue | null>(null);
 
+function toRow(lang: Lang, n: number, set: { weightKg: number; reps: number; rpe: string }): LoggedSet {
+  const w = Number.isInteger(set.weightKg) ? String(set.weightKg) : set.weightKg.toFixed(1);
+  return {
+    n: DICT[lang].set_word + " " + n,
+    label: (lang === "it" ? w.replace(".", ",") : w) + " kg × " + set.reps,
+    note: set.rpe,
+  };
+}
+
 export function BrunoProvider({
   children,
   brandName = "Bruno",
-  startLang = "it",
-  startRole = "user",
 }: {
   children: ReactNode;
   brandName?: string;
-  startLang?: Lang;
-  startRole?: Role;
 }) {
-  const [s, setS] = useState<BrunoState>(() =>
-    defaultState(startLang, startRole)
-  );
-  const [hydrated, setHydrated] = useState(false);
+  const { status } = useSession();
+  const [lang, setLang] = useState<Lang>("it");
+  const [view, setView] = useState<View>("today");
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [weight, setWeight] = useState(60);
+  const [reps, setReps] = useState(5);
+  const [rest, setRest] = useState(0);
+  const [logged, setLogged] = useState<LoggedSet[]>([]);
+  const [habits, setHabits] = useState<boolean[]>([false, false, false, false]);
+  const [mood, setMoodState] = useState(1);
+  const [freeze, setFreeze] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [plan, setPlan] = useState<PlanData | null>(null);
+  const [meals, setMeals] = useState<MealData[]>([]);
+  const [clients, setClients] = useState<ClientSummary[] | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [lastCoachMessage, setLastCoachMessage] = useState<{ text: string; createdAt: string } | null>(null);
+
   const restTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const drag = useRef<DragRef | null>(null);
+  const viewInitialized = useRef(false);
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const p = JSON.parse(raw) as Partial<PersistedState>;
-        // One-time hydration of persisted client state after mount — localStorage
-        // isn't available during server rendering, so this can't run any earlier
-        // without causing a hydration mismatch.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setS((prev) => ({
-          ...prev,
-          lang: p.lang ?? prev.lang,
-          role: p.role ?? prev.role,
-          view: p.view ?? prev.view,
-          habits: p.habits ?? prev.habits,
-          mood: typeof p.mood === "number" ? p.mood : prev.mood,
-          freeze: !!p.freeze,
-        }));
-      }
-    } catch {
-      // localStorage unavailable — continue with in-memory defaults.
+  const refreshBootstrap = useCallback(async () => {
+    const res = await fetch("/api/bootstrap");
+    if (!res.ok) return;
+    const data = await res.json();
+    setProfile(data.user);
+    setLang(data.user.lang);
+    setHabits(data.dailyLog.habits);
+    setMoodState(typeof data.dailyLog.mood === "number" ? data.dailyLog.mood : 1);
+    setFreeze(!!data.dailyLog.freeze);
+    setStreak(data.streak);
+    setPlan(data.plan);
+    setMeals(data.meals);
+    setClients(data.clients);
+    setLastCoachMessage(data.lastCoachMessage);
+    setLogged(
+      data.session
+        ? data.session.sets.map((set: { weightKg: number; reps: number; rpe: string }, i: number) =>
+            toRow(data.user.lang, i + 1, set)
+          )
+        : []
+    );
+    if (!viewInitialized.current) {
+      viewInitialized.current = true;
+      setView(data.user.role === "TRAINER" ? "clients" : "today");
     }
-    setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    try {
-      const payload: PersistedState = {
-        lang: s.lang,
-        role: s.role,
-        view: s.view,
-        habits: s.habits,
-        mood: s.mood,
-        freeze: s.freeze,
-      };
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    } catch {
-      // ignore write failures (private mode, quota, etc).
-    }
-  }, [hydrated, s.lang, s.role, s.view, s.habits, s.mood, s.freeze]);
+    if (status !== "authenticated") return;
+    // Kicks off the initial data load once the session is confirmed — there's
+    // no earlier point to fetch from without an authenticated request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    refreshBootstrap().finally(() => setLoading(false));
+  }, [status, refreshBootstrap]);
 
   useEffect(() => {
     return () => {
@@ -168,228 +190,220 @@ export function BrunoProvider({
     };
   }, []);
 
-  const d = DICT[s.lang];
+  const d = DICT[lang];
 
   const fmt = useCallback(
-    (weight: number) => {
-      const base = Number.isInteger(weight) ? String(weight) : weight.toFixed(1);
-      return (s.lang === "it" ? base.replace(".", ",") : base) + " kg";
+    (w: number) => {
+      const base = Number.isInteger(w) ? String(w) : w.toFixed(1);
+      return (lang === "it" ? base.replace(".", ",") : base) + " kg";
     },
-    [s.lang]
+    [lang]
   );
 
-  const go = useCallback((view: View) => setS((p) => ({ ...p, view })), []);
+  const go = useCallback((v: View) => setView(v), []);
+  const toggleLang = useCallback(() => setLang((p) => (p === "it" ? "en" : "it")), []);
+  const logout = useCallback(() => signOut({ callbackUrl: "/login" }), []);
 
-  const setUser = useCallback(
-    () => setS((p) => ({ ...p, role: "user", view: "today" })),
-    []
-  );
-  const setTrainer = useCallback(
-    () => setS((p) => ({ ...p, role: "trainer", view: "clients" })),
-    []
-  );
-  const toggleLang = useCallback(
-    () =>
-      setS((p) => ({
-        ...p,
-        lang: p.lang === "it" ? "en" : "it",
-        msgs: null,
-        logged: [],
-      })),
-    []
-  );
-
-  const logSet = useCallback(() => {
-    setS((p) => {
-      const n = p.logged.length + 1;
-      const row: LoggedSet = {
-        n: DICT[p.lang].set_word + " " + n,
-        label:
-          (p.lang === "it"
-            ? (Number.isInteger(p.weight) ? String(p.weight) : p.weight.toFixed(1)).replace(".", ",")
-            : Number.isInteger(p.weight) ? String(p.weight) : p.weight.toFixed(1)) +
-          " kg × " +
-          p.reps,
-        note: n > 2 ? "RPE 8" : "RPE 7",
-      };
-      return { ...p, logged: [...p.logged, row], rest: 90 };
+  const logSet = useCallback(async () => {
+    const exerciseName = plan?.exercises[Math.floor(logged.length / 5) % Math.max(1, plan.exercises.length)]?.name ?? "Esercizio";
+    const rpe = logged.length > 2 ? "RPE 8" : "RPE 7";
+    const res = await fetch("/api/sets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ exercise: exerciseName, weightKg: weight, reps, rpe }),
     });
-    if (restTimer.current) clearInterval(restTimer.current);
-    restTimer.current = setInterval(() => {
-      setS((p) => {
-        if (p.rest <= 1) {
-          if (restTimer.current) clearInterval(restTimer.current);
-          return { ...p, rest: 0 };
-        }
-        return { ...p, rest: p.rest - 1 };
-      });
-    }, 1000);
-  }, []);
+    if (res.ok) {
+      const { set } = await res.json();
+      setLogged((prev) => [...prev, toRow(lang, prev.length + 1, set)]);
+      setRest(90);
+      if (restTimer.current) clearInterval(restTimer.current);
+      restTimer.current = setInterval(() => {
+        setRest((r) => {
+          if (r <= 1) {
+            if (restTimer.current) clearInterval(restTimer.current);
+            return 0;
+          }
+          return r - 1;
+        });
+      }, 1000);
+    }
+  }, [plan, logged.length, weight, reps, lang]);
 
   const skipRest = useCallback(() => {
     if (restTimer.current) clearInterval(restTimer.current);
-    setS((p) => ({ ...p, rest: 0 }));
+    setRest(0);
   }, []);
 
-  const repsUp = useCallback(
-    () => setS((p) => ({ ...p, reps: Math.min(30, p.reps + 1) })),
-    []
-  );
-  const repsDown = useCallback(
-    () => setS((p) => ({ ...p, reps: Math.max(1, p.reps - 1) })),
-    []
-  );
+  const repsUp = useCallback(() => setReps((r) => Math.min(30, r + 1)), []);
+  const repsDown = useCallback(() => setReps((r) => Math.max(1, r - 1)), []);
 
   const dialDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
-    setS((p) => {
-      drag.current = { x: e.clientX, value: p.weight };
-      return p;
-    });
-  }, []);
+    drag.current = { x: e.clientX, value: weight };
+  }, [weight]);
   const dialMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!drag.current) return;
     const steps = Math.round((drag.current.x - e.clientX) / 13);
     const w = Math.min(WMAX, Math.max(WMIN, drag.current.value + steps * STEP));
-    setS((p) => (p.weight === w ? p : { ...p, weight: w }));
+    setWeight((prev) => (prev === w ? prev : w));
   }, []);
-
-  const portionDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const width = e.currentTarget.offsetWidth;
-    setS((p) => {
-      drag.current = { x: e.clientX, value: p.portion, width };
-      return p;
-    });
-  }, []);
-  const portionMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!drag.current || !drag.current.width) return;
-    const dx = ((e.clientX - drag.current.x) / drag.current.width) * 2;
-    const p2 = Math.min(2, Math.max(0.25, Math.round((drag.current.value + dx) * 4) / 4));
-    setS((p) => (p.portion === p2 ? p : { ...p, portion: p2 }));
-  }, []);
-
   const dragUp = useCallback(() => {
     drag.current = null;
   }, []);
 
-  const setDraft = useCallback(
-    (v: string) => setS((p) => ({ ...p, draft: v })),
+  const persistHabits = useCallback(
+    async (next: { habits?: boolean[]; mood?: number; freeze?: boolean }) => {
+      const res = await fetch("/api/habits", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStreak(data.streak);
+      }
+    },
     []
   );
-  const send = useCallback(() => {
-    setS((p) => {
-      const txt = p.draft.trim();
-      if (!txt) return p;
-      const base: ChatMessage[] =
-        p.msgs ?? DICT[p.lang].msgs.map(([dir, text]) => ({ dir, text }));
-      return { ...p, msgs: [...base, { dir: "out", text: txt }], draft: "" };
-    });
-  }, []);
 
   const toggleHabit = useCallback(
-    (i: number) =>
-      setS((p) => ({
-        ...p,
-        habits: p.habits.map((v, j) => (j === i ? !v : v)),
-      })),
-    []
+    (i: number) => {
+      setHabits((prev) => {
+        const next = prev.map((v, j) => (j === i ? !v : v));
+        persistHabits({ habits: next });
+        return next;
+      });
+    },
+    [persistHabits]
   );
   const setMood = useCallback(
-    (i: number) => setS((p) => ({ ...p, mood: i })),
-    []
+    (i: number) => {
+      setMoodState(i);
+      persistHabits({ mood: i });
+    },
+    [persistHabits]
   );
-  const useFreeze = useCallback(
-    () => setS((p) => ({ ...p, freeze: true })),
-    []
-  );
+  const useFreeze = useCallback(() => {
+    setFreeze(true);
+    persistHabits({ freeze: true });
+  }, [persistHabits]);
 
-  const setGoal = useCallback(
-    (i: number) => setS((p) => ({ ...p, goal: i })),
-    []
-  );
-  const setInvite = useCallback(
-    (v: string) => setS((p) => ({ ...p, invite: v })),
-    []
-  );
-  const setBuildDay = useCallback(
-    (i: number) => setS((p) => ({ ...p, buildDay: i })),
-    []
-  );
-  const addExercise = useCallback(
-    () => setS((p) => ({ ...p, extra: [...p.extra, p.extra.length] })),
-    []
-  );
-  const removeBuildRow = useCallback(
-    (i: number) => setS((p) => ({ ...p, removed: [...p.removed, i] })),
-    []
-  );
+  const openClient = useCallback((id: string) => {
+    setSelectedClientId(id);
+    setView("review");
+  }, []);
+
+  const refreshMeals = useCallback(async () => {
+    const res = await fetch("/api/meals");
+    if (res.ok) {
+      const data = await res.json();
+      setMeals(data.meals);
+    }
+  }, []);
+
+  const saveProfile = useCallback(async (input: { goal?: string; trainerCode?: string }) => {
+    const res = await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      return { ok: false, error: typeof data?.error === "string" ? data.error : "Errore." };
+    }
+    await refreshBootstrap();
+    return { ok: true };
+  }, [refreshBootstrap]);
+
+  const role: Role = profile?.role === "TRAINER" ? "trainer" : "user";
 
   const value = useMemo<BrunoContextValue>(
     () => ({
-      s,
+      loading,
+      profile,
+      s: {
+        view,
+        lang,
+        weight,
+        reps,
+        rest,
+        logged,
+        habits,
+        mood,
+        freeze,
+        streak,
+        plan,
+        meals,
+        clients,
+        selectedClientId,
+        lastCoachMessage,
+        role,
+      },
       d,
       brand: brandName.toUpperCase(),
       brandInitial: brandName.trim().charAt(0).toUpperCase(),
       fmt,
       go,
-      setUser,
-      setTrainer,
       toggleLang,
+      logout,
       logSet,
       skipRest,
       repsUp,
       repsDown,
       dialDown,
       dialMove,
-      portionDown,
-      portionMove,
       dragUp,
-      setDraft,
-      send,
       toggleHabit,
       setMood,
       useFreeze,
-      setGoal,
-      setInvite,
-      setBuildDay,
-      addExercise,
-      removeBuildRow,
+      openClient,
+      refreshMeals,
+      refreshBootstrap,
+      saveProfile,
     }),
     [
-      s,
+      loading,
+      profile,
+      view,
+      lang,
+      weight,
+      reps,
+      rest,
+      logged,
+      habits,
+      mood,
+      freeze,
+      streak,
+      plan,
+      meals,
+      clients,
+      selectedClientId,
+      lastCoachMessage,
+      role,
       d,
       brandName,
       fmt,
       go,
-      setUser,
-      setTrainer,
       toggleLang,
+      logout,
       logSet,
       skipRest,
       repsUp,
       repsDown,
       dialDown,
       dialMove,
-      portionDown,
-      portionMove,
       dragUp,
-      setDraft,
-      send,
       toggleHabit,
       setMood,
       useFreeze,
-      setGoal,
-      setInvite,
-      setBuildDay,
-      addExercise,
-      removeBuildRow,
+      openClient,
+      refreshMeals,
+      refreshBootstrap,
+      saveProfile,
     ]
   );
 
-  return (
-    <BrunoContext.Provider value={value}>{children}</BrunoContext.Provider>
-  );
+  return <BrunoContext.Provider value={value}>{children}</BrunoContext.Provider>;
 }
 
 export function useBruno() {

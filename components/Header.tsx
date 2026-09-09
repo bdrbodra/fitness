@@ -4,9 +4,7 @@ import { useBruno } from "@/lib/BrunoContext";
 import { RigTap } from "@/components/ui/RigTap";
 
 export function Header() {
-  const { s, d, brand, brandInitial, setUser, setTrainer, toggleLang, go } =
-    useBruno();
-  const trainer = s.role === "trainer";
+  const { d, brand, brandInitial, toggleLang, go } = useBruno();
 
   return (
     <div
@@ -22,30 +20,9 @@ export function Header() {
         </span>
       </div>
 
-      <div className="ml-auto flex border border-ink/16">
-        <button
-          type="button"
-          onClick={setUser}
-          className={`rig-tap px-2.5 py-1.5 font-heading text-[11px] font-semibold leading-none tracking-[.1em] ${
-            !trainer ? "bg-accent text-paper" : "bg-transparent text-ink/60"
-          }`}
-        >
-          {d.role_user}
-        </button>
-        <button
-          type="button"
-          onClick={setTrainer}
-          className={`rig-tap px-2.5 py-1.5 font-heading text-[11px] font-semibold leading-none tracking-[.1em] ${
-            trainer ? "bg-accent text-paper" : "bg-transparent text-ink/60"
-          }`}
-        >
-          {d.role_trainer}
-        </button>
-      </div>
-
       <RigTap
         onClick={toggleLang}
-        className="flex h-11 min-w-11 items-center justify-center border border-accent px-2 font-heading text-[11px] font-semibold leading-none tracking-[.1em] text-accent-700"
+        className="ml-auto flex h-11 min-w-11 items-center justify-center border border-accent px-2 font-heading text-[11px] font-semibold leading-none tracking-[.1em] text-accent-700"
       >
         {d.lang_next}
       </RigTap>

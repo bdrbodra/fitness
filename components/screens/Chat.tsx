@@ -1,27 +1,92 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useBruno } from "@/lib/BrunoContext";
 import { RigTap } from "@/components/ui/RigTap";
 
+interface Message {
+  id: string;
+  dir: "in" | "out";
+  text: string;
+  createdAt: string;
+}
+
 export function Chat() {
-  const { s, d, setDraft, send } = useBruno();
-  const msgs = s.msgs ?? d.msgs.map(([dir, text]) => ({ dir, text }));
+  const { s, d } = useBruno();
+  const it = s.lang === "it";
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [counterpart, setCounterpart] = useState<{ id: string; name: string } | null>(null);
+  const [draft, setDraft] = useState("");
+  const [loaded, setLoaded] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+
+  const clientId = s.role === "trainer" ? s.selectedClientId : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const qs = clientId ? `?clientId=${clientId}` : "";
+      const res = await fetch(`/api/chat${qs}`);
+      if (!res.ok || cancelled) return;
+      const data = await res.json();
+      setMessages(data.messages);
+      setCounterpart(data.counterpart);
+      setLoaded(true);
+    }
+    load();
+    const interval = setInterval(load, 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [clientId]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [msgs.length]);
+  }, [messages.length]);
+
+  async function send() {
+    const text = draft.trim();
+    if (!text) return;
+    setDraft("");
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, clientId: clientId ?? undefined }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setMessages((prev) => [...prev, data.message]);
+    }
+  }
+
+  if (loaded && !counterpart) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+        <div className="font-heading text-[20px] font-semibold leading-none">
+          {s.role === "trainer"
+            ? it
+              ? "Scegli un cliente dalla lista per scrivergli."
+              : "Pick a client from the list to message them."
+            : it
+              ? "Non sei ancora collegato a un trainer."
+              : "You're not linked to a trainer yet."}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">
       <div className="px-4 pb-2 pt-3.5">
-        <div className="font-heading text-[26px] font-semibold leading-none">{d.chat_h}</div>
+        <div className="font-heading text-[26px] font-semibold leading-none">
+          {counterpart ? counterpart.name.toUpperCase() : d.chat_h}
+        </div>
         <div className="mt-[3px] text-[11px] text-neutral-700">{d.chat_sub}</div>
       </div>
       <div className="flex flex-1 flex-col gap-[9px] overflow-auto px-4 py-2.5">
-        {msgs.map((m, i) => (
-          <div key={i} className={`flex ${m.dir === "out" ? "justify-end" : "justify-start"}`}>
+        {messages.map((m) => (
+          <div key={m.id} className={`flex ${m.dir === "out" ? "justify-end" : "justify-start"}`}>
             <div
               className={`max-w-[78%] border px-3 py-2.5 text-[13.5px] leading-[1.45] ${
                 m.dir === "out" ? "border-accent bg-accent text-paper" : "border-ink/16 bg-transparent text-ink"
@@ -35,7 +100,7 @@ export function Chat() {
       </div>
       <div className="flex gap-2 border-t border-ink/16 px-3.5 pb-4 pt-2.5">
         <input
-          value={s.draft}
+          value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") send();

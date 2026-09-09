@@ -4,8 +4,24 @@ import { useBruno } from "@/lib/BrunoContext";
 import { Blueprint } from "@/components/ui/Blueprint";
 import { RigTap } from "@/components/ui/RigTap";
 
+const TARGET_KCAL = 2600;
+const TARGET_PROTEIN = 180;
+const TARGET_CARBS = 280;
+const TARGET_FAT = 70;
+
 export function Today() {
-  const { d, go } = useBruno();
+  const { s, d, go } = useBruno();
+
+  const totals = s.meals.reduce(
+    (acc, m) => ({
+      kcal: acc.kcal + m.macros.kcal,
+      protein: acc.protein + m.macros.protein,
+      carbs: acc.carbs + m.macros.carbs,
+      fat: acc.fat + m.macros.fat,
+    }),
+    { kcal: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+  const pct = (v: number, target: number) => Math.min(100, Math.round((v / target) * 100));
 
   return (
     <div className="flex flex-col gap-3.5 px-4 pb-[22px] pt-4">
@@ -20,7 +36,7 @@ export function Today() {
         </div>
         <div className="text-right font-heading text-[10px] font-semibold leading-none tracking-[.12em] text-neutral-700">
           {d.streak}
-          <div className="mt-0.5 text-[30px] leading-none tracking-normal text-ink">14</div>
+          <div className="mt-0.5 text-[30px] leading-none tracking-normal text-ink">{s.streak}</div>
         </div>
       </div>
 
@@ -29,7 +45,7 @@ export function Today() {
         className="flex items-center gap-3 border border-accent px-3.5 py-[11px] text-left"
       >
         <div className="font-heading text-[26px] font-semibold leading-none text-accent-700">
-          14
+          {s.streak}
         </div>
         <div className="flex-1">
           <div className="font-heading text-[12px] font-semibold leading-none tracking-[.1em] text-accent-700">
@@ -47,9 +63,13 @@ export function Today() {
           {d.sess_kicker}
         </div>
         <div className="mb-1 mt-[9px] font-heading text-[28px] font-semibold leading-none">
-          {d.sess_name}
+          {s.plan ? s.plan.dayLabel : d.sess_name}
         </div>
-        <div className="text-[12px] text-paper/72">{d.sess_meta}</div>
+        <div className="text-[12px] text-paper/72">
+          {s.plan
+            ? `${s.plan.exercises.length} ${s.plan.exercises.length === 1 ? "esercizio" : "esercizi"}`
+            : d.sess_meta}
+        </div>
         <RigTap
           onClick={() => go("session")}
           className="mt-3.5 flex min-h-[54px] w-full items-center justify-center bg-accent font-heading text-[18px] font-semibold leading-none tracking-[.12em] text-paper"
@@ -63,10 +83,12 @@ export function Today() {
           <div className="font-heading text-[10px] font-semibold leading-none tracking-[.14em] text-accent-700">
             {d.fuel}
           </div>
-          <div className="text-[11px] text-neutral-700">{d.kcal_line}</div>
+          <div className="text-[11px] text-neutral-700">
+            {totals.kcal} / {TARGET_KCAL} kcal
+          </div>
         </div>
         <div className="my-2.5 h-2 bg-ink/10">
-          <div className="h-full w-[82%] bg-accent" />
+          <div className="h-full bg-accent" style={{ width: `${pct(totals.kcal, TARGET_KCAL)}%` }} />
         </div>
         <div className="grid grid-cols-3 gap-2.5">
           <div>
@@ -74,10 +96,11 @@ export function Today() {
               {d.protein}
             </div>
             <div className="font-heading text-[21px] font-semibold leading-[1.2]">
-              148<span className="text-[12px] text-neutral-700">/180g</span>
+              {totals.protein}
+              <span className="text-[12px] text-neutral-700">/{TARGET_PROTEIN}g</span>
             </div>
             <div className="mt-[5px] h-1 bg-ink/10">
-              <div className="h-full w-[82%] bg-accent" />
+              <div className="h-full bg-accent" style={{ width: `${pct(totals.protein, TARGET_PROTEIN)}%` }} />
             </div>
           </div>
           <div>
@@ -85,10 +108,11 @@ export function Today() {
               {d.carbs}
             </div>
             <div className="font-heading text-[21px] font-semibold leading-[1.2]">
-              210<span className="text-[12px] text-neutral-700">/280g</span>
+              {totals.carbs}
+              <span className="text-[12px] text-neutral-700">/{TARGET_CARBS}g</span>
             </div>
             <div className="mt-[5px] h-1 bg-ink/10">
-              <div className="h-full w-[75%] bg-accent-500" />
+              <div className="h-full bg-accent-500" style={{ width: `${pct(totals.carbs, TARGET_CARBS)}%` }} />
             </div>
           </div>
           <div>
@@ -96,10 +120,11 @@ export function Today() {
               {d.fat}
             </div>
             <div className="font-heading text-[21px] font-semibold leading-[1.2]">
-              62<span className="text-[12px] text-neutral-700">/70g</span>
+              {totals.fat}
+              <span className="text-[12px] text-neutral-700">/{TARGET_FAT}g</span>
             </div>
             <div className="mt-[5px] h-1 bg-ink/10">
-              <div className="h-full w-[88%] bg-accent-400" />
+              <div className="h-full bg-accent-400" style={{ width: `${pct(totals.fat, TARGET_FAT)}%` }} />
             </div>
           </div>
         </div>
@@ -116,7 +141,11 @@ export function Today() {
           {d.coach_kicker}
         </div>
         <p className="my-[9px] text-[13px]" style={{ textWrap: "pretty" }}>
-          {d.coach_note}
+          {s.lastCoachMessage
+            ? s.lastCoachMessage.text
+            : s.lang === "it"
+              ? "Il tuo coach non ti ha ancora scritto."
+              : "Your coach hasn't messaged you yet."}
         </p>
         <RigTap
           onClick={() => go("chat")}
